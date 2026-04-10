@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from auth import is_authorized_private
 from claude_runner import run_claude
 from prompts import build_hand_prompt
+from recorder import save_hand_record
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ async def hand_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             plain = formatted_msg.replace("*", "").replace("\\", "").replace("`", "")
             await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=plain)
 
+        save_hand_record(raw_input, formatted_msg)
         await ack.edit_text("✅ Hand posted to group\\!", parse_mode="MarkdownV2")
 
     except Exception as e:

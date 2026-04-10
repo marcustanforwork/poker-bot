@@ -15,8 +15,8 @@ Marcus inputs a compact template in a private DM. The bot passes it to `claude -
 | Command | Description |
 |---------|-------------|
 | `/template` | Get both input templates in DM |
-| `/hand` | Post a hand report to the staker group (Task 2) |
-| `/status` | Post a tournament status update to the staker group (Task 2) |
+| `/hand` | Post a hand report to the staker group |
+| `/status` | Post a tournament status update to the staker group |
 
 All commands are DM-only. Commands sent in group chat are silently ignored.
 
@@ -55,10 +55,10 @@ All commands are DM-only. Commands sent in group chat are silently ignored.
 
 ---
 
-## Local Development Setup
+## Local Development (main PC)
 
 ```bash
-git clone https://github.com/<your-username>/poker-bot.git
+git clone https://github.com/marcustanforwork/poker-bot.git
 cd poker-bot
 cp .env.example .env
 # fill in .env with your values
@@ -68,50 +68,50 @@ python bot.py
 
 Test: send `/template` to your bot in DM — should return both templates with field guide.
 
-> Note: `/hand` and `/status` are stubs until Task 2.
-
 ---
 
 ## Beelink Deployment
 
+### 1. Clone and install
+
 ```bash
-git clone https://github.com/<your-username>/poker-bot.git
+git clone https://github.com/marcustanforwork/poker-bot.git
 cd poker-bot
 pip install -r requirements.txt
+```
+
+### 2. Create .env
+
+```bash
 cp .env.example .env
-nano .env        # fill in values
-python3 bot.py   # smoke test — send /template to confirm
+nano .env
 ```
 
-Then follow the systemd setup below.
-
----
-
-## Systemd Service (Task 3)
-
-Create `/etc/systemd/system/pokerbot.service`:
-
-```ini
-[Unit]
-Description=Poker Staking Telegram Bot
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=marcus
-WorkingDirectory=/home/marcus/poker-bot
-ExecStart=/usr/bin/python3 bot.py
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
+Fill in:
+```
+TELEGRAM_BOT_TOKEN=your_actual_bot_token
+TELEGRAM_GROUP_CHAT_ID=-100xxxxxxxxxx
+AUTHORIZED_USER_ID=your_numeric_telegram_id
 ```
 
-Replace `marcus` with your actual Linux username.
+### 3. Smoke test
+
+```bash
+python3 bot.py
+```
+
+Send `/template` in DM — if it responds, the bot works on this machine. Ctrl+C to stop.
+
+### 4. Install systemd service
+
+A ready-to-use service file is included in the repo. Edit `User=` and `WorkingDirectory=` if your Linux username is not `marcus`:
+
+```bash
+sudo cp pokerbot.service /etc/systemd/system/pokerbot.service
+sudo nano /etc/systemd/system/pokerbot.service   # update User= and WorkingDirectory= if needed
+```
+
+### 5. Enable and start
 
 ```bash
 sudo systemctl daemon-reload
@@ -120,13 +120,37 @@ sudo systemctl start pokerbot
 sudo systemctl status pokerbot
 ```
 
-### Useful Ops Commands
+Should show `Active: active (running)`.
+
+### 6. Verify after reboot
 
 ```bash
-sudo journalctl -u pokerbot -f        # live logs
-sudo journalctl -u pokerbot -n 50     # last 50 lines
+sudo reboot
+# wait ~30 seconds
+sudo systemctl status pokerbot
+```
+
+Send `/template` to confirm the bot is alive.
+
+---
+
+## Ops Reference
+
+```bash
+# Live log stream
+sudo journalctl -u pokerbot -f
+
+# Last 50 log lines
+sudo journalctl -u pokerbot -n 50
+
+# Log file (on the Beelink, in the repo folder)
+tail -f /home/marcus/poker-bot/pokerbot.log
+
+# Stop / restart
 sudo systemctl stop pokerbot
 sudo systemctl restart pokerbot
+
+# Check auto-start on boot
 sudo systemctl is-enabled pokerbot
 ```
 
@@ -134,7 +158,7 @@ sudo systemctl is-enabled pokerbot
 
 ## Updating the Bot
 
-When changes are pushed to GitHub, deploy on the Beelink:
+When changes are pushed to GitHub from the main PC, deploy on the Beelink:
 
 ```bash
 cd /home/marcus/poker-bot
@@ -144,8 +168,56 @@ sudo systemctl restart pokerbot
 
 ---
 
+## Using the Bot
+
+### /template
+Sends both input templates to your DM. Save these to Telegram Saved Messages for quick access at the table.
+
+### /hand — Hand Report
+
+Fill in the template and send in DM:
+
+```
+/hand
+stk 42000 | pos BTN | pot 8400
+hnd AhKd | brd Jh9c2dTs
+vil: CO r5200
+act: shoved 42000
+res: villain fold, won pot
+note: nut straight draw semi bluff
+```
+
+With villain cards known (shows equity):
+```
+/hand
+stk 42000 | pos BTN | pot 8400
+hnd AhKd | brd Jh9c2dTs
+vil1: CO r5200 hnd JsJc
+vil2: HJ hnd 9h9d
+act: shoved 42000
+res: both fold
+```
+
+### /status — Tournament Status
+
+```
+/status
+event: Main Event Day 1K | buyin: 1100usd
+stk: 87500 | blinds: 600/1200 lvl 12
+left: 48/312
+pos: top 15
+bubble: 30 spots ITM, 18 remain
+next: 1800usd at 18th | ft: 45000usd
+note: table passive, feeling good
+```
+
+---
+
 ## Troubleshooting
 
-- **Bot not responding**: `sudo systemctl status pokerbot`
-- **Claude errors**: `sudo journalctl -u pokerbot -n 50`
-- **MarkdownV2 errors**: handlers fall back to plain text automatically (Task 3)
+| Issue | Fix |
+|-------|-----|
+| Bot not responding | `sudo systemctl status pokerbot` |
+| Claude errors | `sudo journalctl -u pokerbot -n 50` |
+| MarkdownV2 formatting rejected | Handlers auto-retry as plain text |
+| Bot crashes on start | Check `.env` has all three values set |

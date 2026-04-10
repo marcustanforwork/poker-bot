@@ -9,9 +9,15 @@ from handlers.template import template_handler
 
 load_dotenv()
 
+LOG_FILE = os.path.join(os.path.dirname(__file__), "pokerbot.log")
+
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    level=logging.INFO,
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(LOG_FILE, encoding="utf-8"),
+    ]
 )
 
 
